@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b3d2e">
+<title>Huruf Sambung TPQ</title>
+<style>
+  :root {
+    --bg1: #0b3d2e; --bg2: #06261c;
+    --gold: #e8c872; --gold-dim: #b99a4a;
+    --cream: #fbf6e6; --ink: #0b3d2e;
+    --ok: #2e9e6a; --bad: #d94b3d; --warn: #e0a122;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    color: var(--cream);
+    background:
+      radial-gradient(circle at 20% 8%, rgba(232,200,114,.09), transparent 40%),
+      radial-gradient(circle at 85% 92%, rgba(232,200,114,.07), transparent 40%),
+      linear-gradient(160deg, var(--bg1), var(--bg2));
+    overflow: hidden; user-select: none; touch-action: manipulation;
+  }
+  .ar {
+    font-family: "Noto Naskh Arabic", "Scheherazade New", "Amiri", "Traditional Arabic", "Arabic Typesetting", serif;
+    direction: rtl;
+  }
+  button { font-family: inherit; }
+
+  .screen {
+    display: none; position: absolute; inset: 0;
+    padding: max(12px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+    flex-direction: column; align-items: center; overflow-y: auto;
+  }
+  .screen.active { display: flex; }
+  .wrap { width: 100%; max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+
+  /* Tombol yang bisa dipilih dengan sentuhan atau tangan (ada pengisi "dwell") */
+  .hit { position: relative; overflow: hidden; cursor: pointer; }
+  .hit::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: rgba(232,200,114,.55); transform-origin: left center;
+    transform: scaleX(var(--p, 0));
+  }
+  .hit:disabled { cursor: default; }
+
+  /* ---------- Menu ---------- */
+  .hero { text-align: center; margin-top: 6px; }
+  .hero .orn { font-size: 2.6rem; color: var(--gold); line-height: 1; }
+  .hero h1 { font-size: clamp(1.8rem, 8vw, 2.6rem); margin: 6px 0 2px; color: var(--gold); }
+  .hero p { margin: 4px 0; color: #cfe3d8; line-height: 1.5; font-size: .95rem; }
+  .sec-title { font-weight: 700; color: var(--gold); letter-spacing: 1px; font-size: .85rem; text-transform: uppercase; margin-top: 4px; }
+  .jilid-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .jilid {
+    background: rgba(255,255,255,.07); color: var(--cream);
+    border: 2px solid rgba(232,200,114,.3); border-radius: 16px; padding: 12px 10px; text-align: left;
+  }
+  .jilid .jn { font-size: 1.25rem; font-weight: 800; color: var(--gold); }
+  .jilid .jd { font-size: .78rem; color: #cfe3d8; margin-top: 2px; line-height: 1.35; }
+  .jilid .jb { font-size: .78rem; margin-top: 6px; color: var(--gold); }
+  .jilid.sel { background: rgba(232,200,114,.2); border-color: var(--gold); }
+  .btn-main {
+    background: var(--gold); color: var(--ink); border: 0; border-radius: 999px;
+    font-size: 1.1rem; font-weight: 800; padding: 15px 20px; width: 100%;
+    box-shadow: 0 5px 0 var(--gold-dim);
+  }
+  .btn-main:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--gold-dim); }
+  .btn-alt {
+    background: rgba(255,255,255,.1); color: var(--cream);
+    border: 2px solid rgba(232,200,114,.45); border-radius: 999px;
+    font-size: 1.05rem; font-weight: 700; padding: 13px 20px; width: 100%;
+  }
+  .note { font-size: .78rem; color: #8fb3a2; text-align: center; line-height: 1.45; }
+
+  /* ---------- Bermain ---------- */
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .chip { background: rgba(255,255,255,.08); border: 1px solid rgba(232,200,114,.28); border-radius: 999px; padding: 6px 12px; font-size: .9rem; white-space: nowrap; }
+  .chip b { color: var(--gold); }
+  .icon-btn { background: rgba(255,255,255,.1); border: 1px solid rgba(232,200,114,.3); color: var(--cream); border-radius: 999px; min-width: 40px; height: 40px; font-size: 1rem; padding: 0 12px; }
+
+  .progress { height: 6px; background: rgba(255,255,255,.1); border-radius: 99px; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--gold); transition: width .3s; }
+
+  .card {
+    background: var(--cream); color: var(--ink);
+    border: 4px solid var(--gold); border-radius: 22px;
+    box-shadow: 0 12px 34px rgba(0,0,0,.4);
+    padding: 12px 14px 14px; text-align: center; position: relative;
+  }
+  .card .q { font-size: .78rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold-dim); font-weight: 800; }
+  .card .word { font-size: clamp(3rem, 17vw, 5.6rem); line-height: 1.5; font-weight: 700; padding: 2px 0; word-break: keep-all; }
+  .card .latin { min-height: 1.4em; font-size: 1.05rem; color: #3b6b5a; font-style: italic; }
+  .dots { display: flex; gap: 8px; justify-content: center; margin-top: 6px; flex-wrap: wrap; }
+  .dot { width: 16px; height: 16px; border-radius: 50%; background: rgba(11,61,46,.15); border: 2px solid rgba(11,61,46,.25); transition: all .2s; }
+  .dot.on { background: var(--ok); border-color: var(--ok); transform: scale(1.15); }
+  .card.good { animation: glow .6s ease-out; }
+  @keyframes glow { 0% { box-shadow: 0 0 0 0 rgba(46,158,106,.8); } 100% { box-shadow: 0 0 0 26px rgba(46,158,106,0); } }
+
+  .msg { text-align: center; font-weight: 700; min-height: 1.6em; font-size: 1.05rem; }
+  .msg.ok { color: #9be3bc; } .msg.bad { color: #ffb4aa; }
+
+  .letters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .letter {
+    background: var(--cream); color: var(--ink); border: 3px solid var(--gold); border-radius: 18px;
+    padding: 6px 2px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 92px;
+  }
+  .letter .glyph { font-size: clamp(2.2rem, 11vw, 3.4rem); line-height: 1.35; }
+  .letter .nm { font-size: .72rem; color: #4d7a68; margin-top: -4px; }
+  .letter.found { background: #bfe8cf; border-color: var(--ok); }
+  .letter.wrong { background: #f6c9c3; border-color: var(--bad); opacity: .65; animation: shake .35s; }
+  .letter.reveal { background: #fff0c2; border-color: var(--warn); }
+  @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+  .actions { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 8px; margin-top: auto; }
+  .act { border-radius: 14px; border: 1px solid rgba(232,200,114,.35); background: rgba(255,255,255,.1); color: var(--cream); font-weight: 700; padding: 13px 4px; font-size: .92rem; }
+  .act.next { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+  .act[hidden] { display: none; }
+
+  /* ---------- Akhir ---------- */
+  .big { font-size: 4rem; font-weight: 800; color: var(--gold); text-align: center; }
+  .center { text-align: center; }
+
+  /* ---------- Kamera / penunjuk tangan ---------- */
+  #cam { display: none; position: fixed; right: 10px; bottom: 10px; width: 116px; height: 87px; object-fit: cover;
+         transform: scaleX(-1); border-radius: 12px; border: 2px solid var(--gold); z-index: 40; background: #000; pointer-events: none; }
+  body.hand #cam { display: block; }
+  body.hand #play .wrap { padding-bottom: 104px; }
+  #pointer { display: none; position: fixed; left: 0; top: 0; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%;
+             border: 4px solid var(--gold); background: rgba(232,200,114,.28); box-shadow: 0 0 16px rgba(232,200,114,.8);
+             z-index: 60; pointer-events: none; }
+  #loading { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(6,38,28,.94); color: var(--cream);
+             align-items: center; justify-content: center; flex-direction: column; gap: 14px; text-align: center; padding: 24px; }
+  #loading.show { display: flex; }
+  .spin { width: 46px; height: 46px; border-radius: 50%; border: 5px solid rgba(232,200,114,.3); border-top-color: var(--gold); animation: sp 1s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- ================= MENU ================= -->
+<section id="menu" class="screen active">
+  <div class="wrap">
+    <div class="hero">
+      <div class="orn">☪</div>
+      <h1>Huruf Sambung</h1>
+      <p>Lihat kata huruf sambung, lalu pilih <b>semua huruf</b> yang ada di dalamnya.</p>
+    </div>
+
+    <div class="sec-title">1. Pilih jilid</div>
+    <div class="jilid-grid" id="jilidGrid"></div>
+
+    <div class="sec-title">2. Pilih cara bermain</div>
+    <button class="btn-main" id="btnHand">✋ Main dengan Gerakan Tangan</button>
+    <button class="btn-alt" id="btnTouch">👆 Main dengan Sentuh Layar</button>
+
+    <div class="note">
+      Mode tangan memakai kamera depan. Butuh internet dan izin kamera, dan halaman harus dibuka lewat link <b>https</b>.
+      Video kamera tidak disimpan atau dikirim ke mana pun.<br>
+      Tips: sandarkan HP di tempat yang stabil, lalu gerakkan <b>jari telunjuk</b> di depan kamera. Tahan penunjuk di atas huruf sekitar 1 detik untuk memilihnya.
+    </div>
+  </div>
+</section>
+
+<!-- ================= MAIN ================= -->
+<section id="play" class="screen">
+  <div class="wrap">
+    <div class="topbar">
+      <button class="icon-btn hit" id="btnBack">← Menu</button>
+      <span class="chip">Soal <b id="pos">1</b>/<b id="total">10</b></span>
+      <span class="chip">⭐ <b id="stars">0</b></span>
+      <button class="icon-btn hit" id="btnMute">🔊</button>
+    </div>
+    <div class="progress"><div id="bar"></div></div>
+
+    <div class="card" id="card">
+      <div class="q">Huruf apa saja yang ada di kata ini?</div>
+      <div class="word ar" id="word"></div>
+      <div class="latin" id="latin"></div>
+      <div class="dots" id="dots"></div>
+    </div>
+
+    <div class="msg" id="msg"></div>
+    <div class="letters" id="letters"></div>
+
+    <div class="actions">
+      <button class="act hit" id="btnLatin">💡 Bacaan</button>
+      <button class="act hit" id="btnSkip">⏭ Lewati</button>
+      <button class="act next hit" id="btnNext" hidden>Lanjut ▶</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= AKHIR ================= -->
+<section id="end" class="screen">
+  <div class="wrap" style="justify-content:center">
+    <div class="hero"><div class="orn">★</div><h1>Selesai!</h1></div>
+    <div class="big">⭐ <span id="finalStars">0</span>/<span id="maxStars">30</span></div>
+    <p class="center" id="finalMsg"></p>
+    <button class="btn-main hit" id="btnAgain">Main Lagi</button>
+    <button class="btn-alt hit" id="btnMenu">Kembali ke Menu</button>
+  </div>
+</section>
+
+<video id="cam" playsinline muted></video>
+<div id="pointer"></div>
+<div id="loading"><div class="spin"></div><div id="loadingText">Menyiapkan kamera…</div></div>
+
+<!-- ================= DATA KATA ================= -->
+<script id="words-data">
+/* Susunan kata per jilid ini disusun untuk game ini. Mohon ditinjau ustaz/ustazah
+   agar sesuai dengan materi yang sedang diajarkan. Setiap item: [tulisan Arab, bacaan latin].
+   Daftar huruf jawaban dihitung otomatis dari tulisan Arab. */
+const JILID = {
+  3: { title: "Jilid 3", desc: "Kata 3 huruf dengan fathah", words: [
+    ["كَتَبَ","kataba"],["ذَهَبَ","dzahaba"],["جَلَسَ","jalasa"],["نَصَرَ","nashara"],["فَتَحَ","fataha"],
+    ["خَرَجَ","kharaja"],["سَمِعَ","sami'a"],["عَلِمَ","'alima"],["حَمَلَ","hamala"],["شَرِبَ","syariba"],
+    ["رَجَعَ","raja'a"],["وَقَفَ","waqafa"],["دَخَلَ","dakhala"],["طَلَبَ","thalaba"],["غَفَرَ","ghafara"],
+    ["شَكَرَ","syakara"],["سَجَدَ","sajada"],["ظَهَرَ","zhahara"],["زَرَعَ","zara'a"],["ثَبَتَ","tsabata"],["صَبَرَ","shabara"]
+  ]},
+  4: { title: "Jilid 4", desc: "Kasrah, dhammah, sukun, tanwin", words: [
+    ["كِتَابٌ","kitabun"],["قَلَمٌ","qalamun"],["بَيْتٌ","baitun"],["مَسْجِدٌ","masjidun"],["رَسُولٌ","rasulun"],
+    ["مُسْلِمٌ","muslimun"],["مَلَكٌ","malakun"],["نُورٌ","nurun"],["عِلْمٌ","'ilmun"],["صَوْمٌ","shaumun"],
+    ["دِينٌ","dinun"],["قَمَرٌ","qamarun"],["شَمْسٌ","syamsun"],["نَجْمٌ","najmun"],["بَحْرٌ","bahrun"],
+    ["جَبَلٌ","jabalun"],["نَهْرٌ","nahrun"],["حَجَرٌ","hajarun"],["وَلَدٌ","waladun"],["بِنْتٌ","bintun"],
+    ["رَجُلٌ","rajulun"],["قَلْبٌ","qalbun"],["لَوْنٌ","lawnun"]
+  ]},
+  5: { title: "Jilid 5", desc: "Alif lam dan tasydid", words: [
+    ["الرَّحْمَنُ","ar-rahmanu"],["الرَّحِيمُ","ar-rahimu"],["اللَّهُ","allahu"],["الْحَمْدُ","al-hamdu"],
+    ["الْعَالَمِينَ","al-'alamin"],["الدِّينِ","ad-din"],["الصِّرَاطَ","ash-shirath"],["الْكَوْثَرَ","al-kautsar"],
+    ["الْفَلَقِ","al-falaq"],["النَّاسِ","an-nas"],["الصَّمَدُ","ash-shamad"],["الْقَمَرُ","al-qamaru"],
+    ["الشَّمْسُ","asy-syamsu"],["الْبَيْتِ","al-baiti"],["الْعِلْمُ","al-'ilmu"],["الْكِتَابُ","al-kitabu"],
+    ["الْحَقُّ","al-haqqu"],["الرَّبُّ","ar-rabbu"],["سَلَّمَ","sallama"],["عَلَّمَ","'allama"]
+  ]},
+  6: { title: "Jilid 6", desc: "Kalimat dan doa pendek", words: [
+    ["بِسْمِ اللَّهِ","bismillah"],["الْحَمْدُ لِلَّهِ","alhamdulillah"],["سُبْحَانَ اللَّهِ","subhanallah"],
+    ["قُلْ هُوَ اللَّهُ","qul huwallahu"],["رَبِّ الْعَالَمِينَ","rabbil 'alamin"],["مَالِكِ يَوْمِ الدِّينِ","maliki yaumid din"],
+    ["اهْدِنَا الصِّرَاطَ","ihdinash shirath"],["صَدَقَ اللَّهُ","shadaqallah"],["سَلَامٌ عَلَيْكُمْ","salamun 'alaikum"],
+    ["بَارَكَ اللَّهُ","barakallah"],["جَزَاكَ اللَّهُ","jazakallah"],["يَا رَبِّ","ya rabb"],["نَصْرٌ مِنَ اللَّهِ","nashrun minallah"]
+  ]}
+};
+</script>
+
+<!-- ================= LOGIKA ================= -->
+<script id="main-js">
+(function () {
+  "use strict";
+
+  const ALPHABET = "ابتثجحخدذرزسشصضطظعغفقكلمنهوي";
+  const NAMES = {
+    "ا":"Alif","ب":"Ba","ت":"Ta","ث":"Tsa","ج":"Jim","ح":"Ha","خ":"Kho","د":"Dal","ذ":"Dzal","ر":"Ra",
+    "ز":"Zai","س":"Sin","ش":"Syin","ص":"Shad","ض":"Dhad","ط":"Tha","ظ":"Zha","ع":"'Ain","غ":"Ghain",
+    "ف":"Fa","ق":"Qaf","ك":"Kaf","ل":"Lam","م":"Mim","ن":"Nun","ه":"Ha'","و":"Wau","ي":"Ya"
+  };
+  // Huruf yang bentuknya mirip dipakai sebagai pengecoh
+  const CONFUSABLE = ["بتثني","جحخ","دذ","رز","سش","صض","طظ","عغ","فق"];
+  const ROUNDS = 10;
+  const DWELL_MS = 950;
+  const HANDS_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/";
+
+  const $ = (id) => document.getElementById(id);
+  const screens = { menu: $("menu"), play: $("play"), end: $("end") };
+  function show(name) { for (const k in screens) screens[k].classList.toggle("active", k === name); }
+
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function lettersOf(ar) {
+    const out = [];
+    for (const ch of ar) if (ALPHABET.indexOf(ch) >= 0 && out.indexOf(ch) < 0) out.push(ch);
+    return out;
+  }
+  function store(key, val) { try { localStorage.setItem(key, String(val)); } catch (e) {} }
+  function load(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+
+  /* ---------- Suara ---------- */
+  let muted = false, audioCtx = null;
+  function beep(freq, dur, vol, delay) {
+    if (muted) return;
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      const t0 = audioCtx.currentTime + (delay || 0);
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "sine"; o.frequency.value = freq; g.gain.value = vol || 0.15;
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t0);
+      g.gain.setValueAtTime(vol || 0.15, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.stop(t0 + dur);
+    } catch (e) {}
+  }
+  const sndOk = () => { beep(784, .12, .14); beep(1047, .18, .14, .1); };
+  const sndBad = () => beep(200, .3, .16);
+  const sndWin = () => { beep(659, .12, .15); beep(784, .12, .15, .12); beep(1047, .3, .15, .24); };
+
+  /* ---------- Menu ---------- */
+  let selJilid = 3;
+  function renderMenu() {
+    const grid = $("jilidGrid");
+    grid.innerHTML = "";
+    [3, 4, 5, 6].forEach(function (j) {
+      const b = document.createElement("button");
+      b.className = "jilid hit" + (j === selJilid ? " sel" : "");
+      const best = load("tpq_best_" + j);
+      b.innerHTML = '<div class="jn">' + JILID[j].title + '</div><div class="jd">' + JILID[j].desc + '</div>' +
+        '<div class="jb">' + (best ? "⭐ Terbaik: " + best : "Belum dimainkan") + '</div>';
+      b.addEventListener("click", function () { selJilid = j; renderMenu(); });
+      grid.appendChild(b);
+    });
+  }
+
+  /* ---------- Permainan ---------- */
+  let game = null, nextTimer = null, showLatin = false;
+
+  function buildOptions(correct) {
+    const total = Math.max(8, correct.length + 3);
+    const opts = new Set(correct);
+    const pool = [];
+    correct.forEach(function (c) {
+      CONFUSABLE.forEach(function (g) {
+        if (g.indexOf(c) >= 0) for (const x of g) if (!opts.has(x)) pool.push(x);
+      });
+    });
+    shuffle(pool);
+    for (const x of pool) { if (opts.size >= total) break; opts.add(x); }
+    const rest = shuffle(ALPHABET.split("").filter(function (x) { return !opts.has(x); }));
+    while (opts.size < total) opts.add(rest.pop());
+    return shuffle(Array.from(opts));
+  }
+
+  function startGame(mode) {
+    const pool = shuffle(JILID[selJilid].words.slice()).slice(0, ROUNDS);
+    game = { jilid: selJilid, words: pool, i: 0, stars: 0, mistakes: 0, found: new Set(), correct: [], done: false, handMode: mode === "hand" };
+    document.body.classList.toggle("hand", game.handMode);
+    $("total").textContent = pool.length;
+    show("play");
+    startRound();
+  }
+
+  function startRound() {
+    clearTimeout(nextTimer);
+    const w = game.words[game.i];
+    game.correct = lettersOf(w[0]);
+    game.found = new Set();
+    game.mistakes = 0;
+    game.done = false;
+
+    $("word").textContent = w[0];
+    $("latin").textContent = showLatin ? w[1] : "";
+    $("pos").textContent = game.i + 1;
+    $("stars").textContent = game.stars;
+    $("bar").style.width = (game.i / game.words.length * 100) + "%";
+    $("msg").textContent = "Cari " + game.correct.length + " huruf yang berbeda";
+    $("msg").className = "msg";
+    $("card").classList.remove("good");
+    $("btnNext").hidden = true;
+    $("btnSkip").hidden = false;
+
+    const dots = $("dots");
+    dots.innerHTML = "";
+    game.correct.forEach(function () {
+      const d = document.createElement("span"); d.className = "dot"; dots.appendChild(d);
+    });
+
+    const box = $("letters");
+    box.innerHTML = "";
+    buildOptions(game.correct).forEach(function (ch) {
+      const b = document.createElement("button");
+      b.className = "letter hit";
+      b.dataset.ch = ch;
+      b.innerHTML = '<span class="glyph ar">' + ch + '</span><span class="nm">' + NAMES[ch] + '</span>';
+      b.addEventListener("click", function () { pick(ch, b); });
+      box.appendChild(b);
+    });
+  }
+
+  function pick(ch, btn) {
+    if (!game || game.done || btn.disabled) return;
+    btn.disabled = true;
+    const msg = $("msg");
+    if (game.correct.indexOf(ch) >= 0) {
+      game.found.add(ch);
+      btn.classList.add("found");
+      const dots = $("dots").children;
+      for (let k = 0; k < dots.length; k++) dots[k].classList.toggle("on", k < game.found.size);
+      if (game.found.size === game.correct.length) { finishRound(); return; }
+      sndOk();
+      msg.textContent = "Betul! Cari huruf yang lain";
+      msg.className = "msg ok";
+    } else {
+      game.mistakes++;
+      btn.classList.add("wrong");
+      sndBad();
+      msg.textContent = "Bukan huruf ini, coba lagi ya";
+      msg.className = "msg bad";
+    }
+  }
+
+  function finishRound() {
+    game.done = true;
+    const earned = game.mistakes === 0 ? 3 : (game.mistakes <= 2 ? 2 : 1);
+    game.stars += earned;
+    $("stars").textContent = game.stars;
+    $("msg").textContent = "MasyaAllah! " + "⭐".repeat(earned);
+    $("msg").className = "msg ok";
+    $("latin").textContent = game.words[game.i][1];
+    $("card").classList.add("good");
+    $("btnNext").hidden = false;
+    $("btnSkip").hidden = true;
+    sndWin();
+    nextTimer = setTimeout(nextRound, 3200);
+  }
+
+  function skipRound() {
+    if (!game || game.done) return;
+    game.done = true;
+    document.querySelectorAll("#letters .letter").forEach(function (b) {
+      if (game.correct.indexOf(b.dataset.ch) >= 0 && !b.classList.contains("found")) b.classList.add("reveal");
+      b.disabled = true;
+    });
+    $("latin").textContent = game.words[game.i][1];
+    $("msg").textContent = "Ini jawabannya. Kita coba kata berikutnya ya";
+    $("msg").className = "msg";
+    $("btnSkip").hidden = true;
+    $("btnNext").hidden = false;
+    nextTimer = setTimeout(nextRound, 4000);
+  }
+
+  function nextRound() {
+    clearTimeout(nextTimer);
+    if (!game) return;
+    game.i++;
+    if (game.i >= game.words.length) { endGame(); return; }
+    startRound();
+  }
+
+  function endGame() {
+    clearTimeout(nextTimer);
+    const max = game.words.length * 3;
+    const key = "tpq_best_" + game.jilid;
+    const prev = parseInt(load(key) || "0", 10);
+    if (game.stars > prev) store(key, game.stars);
+    $("finalStars").textContent = game.stars;
+    $("maxStars").textContent = max;
+    const r = game.stars / max;
+    $("finalMsg").textContent = r >= 0.85 ? "MasyaAllah, hebat sekali! Huruf sambungnya sudah lancar."
+      : r >= 0.55 ? "Bagus! Ayo main lagi supaya makin lancar."
+      : "Tidak apa-apa, terus berlatih ya. Pelan-pelan pasti bisa.";
+    stopCamera();
+    show("end");
+  }
+
+  function toMenu() {
+    clearTimeout(nextTimer);
+    stopCamera();
+    document.body.classList.remove("hand");
+    game = null;
+    renderMenu();
+    show("menu");
+  }
+
+  /* ---------- Kamera dan tangan ---------- */
+  const cam = $("cam"), pointer = $("pointer");
+  let stream = null, hands = null, handsReady = false, handActive = false;
+  let px = 0, py = 0, lastSeen = 0, havePos = false;
+  const dwell = { el: null, start: 0, cool: 0 };
+
+  function loadScript(src) {
+    return new Promise(function (res, rej) {
+      const s = document.createElement("script");
+      s.src = src; s.crossOrigin = "anonymous";
+      s.onload = res;
+      s.onerror = function () { rej(new Error("Library pembaca tangan gagal dimuat. Pastikan HP terhubung ke internet.")); };
+      document.head.appendChild(s);
+    });
+  }
+
+  async function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("Kamera tidak bisa dipakai di sini. Buka game lewat link https (bukan file langsung dari HP).");
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    } catch (e) {
+      throw new Error("Izin kamera ditolak atau kamera tidak ditemukan.");
+    }
+    cam.srcObject = stream;
+    await cam.play();
+  }
+
+  async function initHands() {
+    if (!window.Hands) await loadScript(HANDS_BASE + "hands.js");
+    if (!window.Hands) throw new Error("Library pembaca tangan tidak tersedia.");
+    hands = new window.Hands({ locateFile: function (f) { return HANDS_BASE + f; } });
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6, minTrackingConfidence: 0.5 });
+    hands.onResults(onHand);
+    await hands.initialize();
+    handsReady = true;
+  }
+
+  async function frameLoop() {
+    if (!handActive) return;
+    if (cam.readyState >= 2) {
+      try { await hands.send({ image: cam }); } catch (e) {}
+    }
+    if (handActive) requestAnimationFrame(frameLoop);
+  }
+
+  function onHand(results) {
+    const now = performance.now();
+    const list = results && results.multiHandLandmarks;
+    if (!list || !list.length) return;
+    const tip = list[0][8]; // ujung jari telunjuk
+    // cermin horizontal + sedikit margin supaya tepi layar mudah dijangkau
+    const nx = Math.min(1, Math.max(0, ((1 - tip.x) - 0.12) / 0.76));
+    const ny = Math.min(1, Math.max(0, (tip.y - 0.12) / 0.76));
+    const tx = nx * window.innerWidth, ty = ny * window.innerHeight;
+    if (!havePos) { px = tx; py = ty; havePos = true; }
+    else { px += (tx - px) * 0.4; py += (ty - py) * 0.4; }
+    lastSeen = now;
+    pointer.style.display = "block";
+    pointer.style.transform = "translate(" + px + "px," + py + "px)";
+    dwellUpdate(px, py, now);
+  }
+
+  function clearDwell() {
+    if (dwell.el) dwell.el.style.setProperty("--p", 0);
+    dwell.el = null;
+  }
+
+  function dwellUpdate(x, y, now) {
+    if (now < dwell.cool) return;
+    let el = document.elementFromPoint(x, y);
+    el = el && el.closest ? el.closest(".hit") : null;
+    if (el && el.disabled) el = null;
+    if (el !== dwell.el) { clearDwell(); dwell.el = el; dwell.start = now; }
+    if (el) {
+      const p = Math.min(1, (now - dwell.start) / DWELL_MS);
+      el.style.setProperty("--p", p);
+      if (p >= 1) {
+        const target = el;
+        clearDwell();
+        dwell.cool = now + 800;
+        target.click();
+      }
+    }
+  }
+
+  // sembunyikan penunjuk kalau tangan hilang dari kamera
+  setInterval(function () {
+    if (handActive && performance.now() - lastSeen > 700) {
+      pointer.style.display = "none";
+      clearDwell();
+      havePos = false;
+    }
+  }, 250);
+
+  function stopCamera() {
+    handActive = false;
+    clearDwell();
+    pointer.style.display = "none";
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    cam.srcObject = null;
+  }
+
+  async function startHandMode() {
+    const loading = $("loading");
+    $("loadingText").textContent = "Menyiapkan kamera dan pembaca tangan…\n(pertama kali bisa agak lama)";
+    $("loadingText").style.whiteSpace = "pre-line";
+    loading.classList.add("show");
+    try {
+      await startCamera();
+      if (!handsReady) await initHands();
+      handActive = true;
+      havePos = false;
+      loading.classList.remove("show");
+      startGame("hand");
+      requestAnimationFrame(frameLoop);
+    } catch (err) {
+      stopCamera();
+      loading.classList.remove("show");
+      if (window.confirm((err && err.message ? err.message : "Mode tangan gagal dijalankan.") + "\n\nMain dengan sentuh layar saja?")) {
+        startGame("touch");
+      }
+    }
+  }
+
+  /* ---------- Tombol ---------- */
+  $("btnTouch").addEventListener("click", function () { startGame("touch"); });
+  $("btnHand").addEventListener("click", startHandMode);
+  $("btnBack").addEventListener("click", toMenu);
+  $("btnMenu").addEventListener("click", toMenu);
+  $("btnAgain").addEventListener("click", function () {
+    const wasHand = game ? game.handMode : false;
+    if (wasHand) startHandMode(); else startGame("touch");
+  });
+  $("btnNext").addEventListener("click", nextRound);
+  $("btnSkip").addEventListener("click", skipRound);
+  $("btnLatin").addEventListener("click", function () {
+    showLatin = !showLatin;
+    if (game) $("latin").textContent = (showLatin || game.done) ? game.words[game.i][1] : "";
+  });
+  $("btnMute").addEventListener("click", function () {
+    muted = !muted;
+    $("btnMute").textContent = muted ? "🔇" : "🔊";
+  });
+
+  renderMenu();
+})();
+</script>
+</body>
+</html>
